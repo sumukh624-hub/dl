@@ -1,0 +1,252 @@
+Q1. Neural Network using OOP
+import numpy as np
+import matplotlib.pyplot as plt
+
+class NeuralNetwork:
+    def __init__(self, learning_rate):
+        self.weights=np.array([np.random.randn(),np.random.randn()])
+        self.bias=np.random.randn()
+        self.learning_rate=learning_rate
+
+    def _sigmoid(self,x): return 1/(1+np.exp(-x))
+    def _sigmoid_deriv(self,x): return self._sigmoid(x)*(1-self._sigmoid(x))
+
+    def predict(self,x):
+        return self._sigmoid(np.dot(x,self.weights)+self.bias)
+
+    def _compute_gradients(self,x,target):
+        z=np.dot(x,self.weights)+self.bias
+        prediction=self._sigmoid(z)
+        error=2*(prediction-target)
+        dz=self._sigmoid_deriv(z)
+        db=error*dz
+        dw=error*dz*x
+        return db,dw
+
+    def _update_parameters(self,db,dw):
+        self.bias-=db*self.learning_rate
+        self.weights-=dw*self.learning_rate
+
+    def train(self,X,y,iterations):
+        errors=[]
+        for i in range(iterations):
+            index=np.random.randint(len(X))
+            db,dw=self._compute_gradients(X[index],y[index])
+            self._update_parameters(db,dw)
+            if i%100==0:
+                error=sum(np.square(self.predict(X[j])-y[j]) for j in range(len(X)))
+                errors.append(error)
+        return errors
+
+X=np.array([[3,1.5],[2,1],[4,1.5],[3,4],[3.5,0.5],[2,0.5],[5.5,1],[1,1]])
+y=np.array([0,1,0,1,0,1,1,0])
+
+nn=NeuralNetwork(0.1)
+training_error=nn.train(X,y,10000)
+
+for x in X:
+    print(x,"=>",1 if nn.predict(x)>=0.5 else 0)
+
+plt.plot(range(0,10000,100),training_error)
+plt.xlabel("Iterations")
+plt.ylabel("Cumulative Error")
+plt.title("Training Error Curve")
+plt.show()
+Q2. Activation Functions
+import numpy as np
+
+def binary_step(x): return 1 if x>=0 else 0
+def linear(x): return x
+def sigmoid(x): return 1/(1+np.exp(-x))
+def tanh(x): return (np.exp(x)-np.exp(-x))/(np.exp(x)+np.exp(-x))
+def relu(x): return max(0,x)
+def leaky_relu(x): return x if x>0 else 0.01*x
+def elu(x,a=1): return x if x>0 else a*(np.exp(x)-1)
+def softmax(x):
+    e=np.exp(x-np.max(x))
+    return e/np.sum(e)
+
+x=-2
+print("Binary Step:",binary_step(x))
+print("Linear:",linear(x))
+print("Sigmoid:",sigmoid(x))
+print("Tanh:",tanh(x))
+print("ReLU:",relu(x))
+print("Leaky ReLU:",leaky_relu(x))
+print("ELU:",elu(x))
+print("Softmax:",softmax(np.array([1,2,3])))
+Q3. Optimizers
+import numpy as np
+
+w=5.0
+lr=0.1
+gradient=2.0
+
+def gradient_descent(w,g,lr): return w-lr*g
+def sgd(w,g,lr): return w-lr*g
+
+def sgd_momentum(w,g,lr,beta=0.9):
+    v=0
+    v=beta*v+lr*g
+    return w-v
+
+def adagrad(w,g,lr,e=1e-8):
+    G=g**2
+    return w-(lr*g)/(np.sqrt(G)+e)
+
+def rmsprop(w,g,lr,beta=0.9,e=1e-8):
+    S=(1-beta)*g**2
+    return w-(lr*g)/(np.sqrt(S)+e)
+
+def adam(w,g,lr,b1=0.9,b2=0.999,e=1e-8):
+    m=(1-b1)*g
+    v=(1-b2)*g**2
+    mh=m/(1-b1)
+    vh=v/(1-b2)
+    return w-lr*mh/(np.sqrt(vh)+e)
+
+print("Gradient Descent:",gradient_descent(w,gradient,lr))
+print("SGD:",sgd(w,gradient,lr))
+print("Momentum:",sgd_momentum(w,gradient,lr))
+print("AdaGrad:",adagrad(w,gradient,lr))
+print("RMSProp:",rmsprop(w,gradient,lr))
+print("Adam:",adam(w,gradient,lr))
+Q4. XOR using Perceptron
+import numpy as np
+
+X=np.array([[0,0],[0,1],[1,0],[1,1]])
+y=np.array([[0],[1],[1],[0]])
+
+np.random.seed(1)
+W1=np.random.randn(2,4)
+W2=np.random.randn(4,1)
+b1=np.zeros((1,4))
+b2=np.zeros((1,1))
+
+def sigmoid(x): return 1/(1+np.exp(-x))
+
+for _ in range(10000):
+    h=sigmoid(X@W1+b1)
+    o=sigmoid(h@W2+b2)
+    e=y-o
+    d2=e*o*(1-o)
+    d1=(d2@W2.T)*h*(1-h)
+    W2+=h.T@d2*0.1
+    W1+=X.T@d1*0.1
+    b2+=d2.sum(axis=0)*0.1
+    b1+=d1.sum(axis=0)*0.1
+
+print((o>=0.5).astype(int))
+Q5. Wine Classification using Backpropagation
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+red=pd.read_csv("winequality-red.csv",sep=";")
+white=pd.read_csv("winequality-white.csv",sep=";")
+red["type"]=1
+white["type"]=0
+wine=pd.concat([red,white])
+
+X=wine.iloc[:,:11]
+y=wine["type"]
+
+X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.3,random_state=42)
+
+scaler=StandardScaler()
+X_train=scaler.fit_transform(X_train)
+X_test=scaler.transform(X_test)
+
+model=Sequential([
+    Dense(12,activation="relu",input_shape=(11,)),
+    Dense(8,activation="relu"),
+    Dense(1,activation="sigmoid")
+])
+
+model.compile(optimizer="adam",loss="binary_crossentropy",metrics=["accuracy"])
+model.fit(X_train,y_train,epochs=10,batch_size=32)
+
+print("Accuracy:",model.evaluate(X_test,y_test)[1])
+Q6. MNIST CNN
+import tensorflow as tf
+from tensorflow.keras import layers,models
+from tensorflow.keras.datasets import mnist
+
+(X_train,y_train),(X_test,y_test)=mnist.load_data()
+
+X_train=X_train.reshape(-1,28,28,1)/255.0
+X_test=X_test.reshape(-1,28,28,1)/255.0
+
+model=models.Sequential([
+    layers.Conv2D(32,(3,3),activation="relu",input_shape=(28,28,1)),
+    layers.MaxPooling2D((2,2)),
+    layers.Conv2D(64,(3,3),activation="relu"),
+    layers.MaxPooling2D((2,2)),
+    layers.Flatten(),
+    layers.Dense(64,activation="relu"),
+    layers.Dense(10,activation="softmax")
+])
+
+model.compile(optimizer="adam",loss="sparse_categorical_crossentropy",metrics=["accuracy"])
+model.fit(X_train,y_train,epochs=5,batch_size=64)
+
+print("Accuracy:",model.evaluate(X_test,y_test)[1])
+Q7. VGG16 Object Classification
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras.applications.vgg16 import preprocess_input,decode_predictions
+import numpy as np
+
+model=VGG16(weights="imagenet")
+
+img=image.load_img("image.jpg",target_size=(224,224))
+x=image.img_to_array(img)
+x=np.expand_dims(x,axis=0)
+x=preprocess_input(x)
+
+pred=model.predict(x)
+
+for _,label,score in decode_predictions(pred,top=3)[0]:
+    print(label,score)
+
+Q8. RNN for Handwriting Digit Recognition
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import SimpleRNN,Dense
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+
+(X_train,y_train),(X_test,y_test)=mnist.load_data()
+
+X_train=X_train/255.0
+X_test=X_test/255.0
+y_train=to_categorical(y_train)
+y_test=to_categorical(y_test)
+
+model=Sequential([
+    SimpleRNN(128,input_shape=(28,28)),
+    Dense(10,activation="softmax")
+])
+
+model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=["accuracy"])
+model.fit(X_train,y_train,epochs=5,batch_size=32)
+
+print("Accuracy:",model.evaluate(X_test,y_test)[1])
+
+Q9. Bidirectional RNN for Music Generation
+import numpy as np
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding,Bidirectional,LSTM,Dense
+
+X=np.random.randint(0,128,(1000,50))
+y=np.eye(128)[X]
+
+model=Sequential([
+    Embedding(128,64),
+    Bidirectional(LSTM(64,return_sequences=True)),
+    Dense(128,activation="softmax")
+])
+
+model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=["accuracy"])
+model.fit(X,y,epochs=5,batch_size=32)
